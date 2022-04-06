@@ -12,3 +12,4 @@ while(temp != NULL)
             ans = ans -> next
         else
             ans = ans -> next -> next
+return ans -> data
