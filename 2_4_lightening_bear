@@ -5,8 +5,8 @@
 
 typedef struct node{
     int vertex;
-    struct node** neighbor; // arrary record neighbor
-    struct node*down;
+    struct node **neighbor; // arrary record neighbor
+    struct node *main_down, *side_down;
 }node;
 
 typedef struct stack {
@@ -26,15 +26,26 @@ node * stack_peek(stack *stk){
     return stk -> top;
 }
 
-void stack_push(stack *stk, node *n){
-    n -> down = stk -> top;
+void stack_push_main(stack *stk, node *n){
+    n -> main_down = stk -> top;
     stk -> top = n;
 }
 
-void stack_pop(stack *stk){
+void stack_pop_main(stack *stk){
     node *popped = stk -> top;
-    stk -> top = popped -> down;
-    popped -> down = NULL;
+    stk -> top = popped -> main_down;
+    popped -> main_down = NULL;
+}
+
+void stack_push_side(stack *stk, node *n){
+    n -> side_down = stk -> top;
+    stk -> top = n;
+}
+
+void stack_pop_side(stack *stk){
+    node *popped = stk -> top;
+    stk -> top = popped -> side_down;
+    popped -> side_down = NULL;
 }
 
 node* node_new(int v, int num_of_neighbor) {
@@ -44,50 +55,22 @@ node* node_new(int v, int num_of_neighbor) {
     return new_node;
 }
 
-void sub_mark(node *n, int mark, int *table, int *num_of_nei, int *count){
-    table[n -> vertex - 1] = mark;
-    node *temp = n;
-    stack *stk = stack_new();
-    int i = 0, target;
-
-    stack_push(stk, temp);
-    table[temp -> vertex - 1] = mark;
-
-    while(1){
-        if(count[temp -> vertex - 1] < num_of_nei[temp -> vertex - 1] && temp -> down == temp -> neighbor[count[temp -> vertex - 1]])
-            count[temp -> vertex - 1]++;
-        if(count[temp -> vertex - 1] >= num_of_nei[temp -> vertex - 1]){
-            stack_pop(stk);
-            if(stack_is_empty(stk)) break;
-            else temp = stack_peek(stk);
-        }
-        else{
-            target = count[temp -> vertex - 1];
-            count[temp -> vertex - 1]++;
-            temp = temp -> neighbor[target];
-            table[temp -> vertex - 1] =  mark;
-            stack_push(stk, temp); 
-        }
-    }
-}
-
 void mark(node *cur, node *prev, node *next, int *table, int *num_of_nei, int *count){
     int mark = cur -> vertex;
     table[mark - 1] = mark;
     stack *stk = calloc(1, sizeof(stack));
     for(int i = 0; i < num_of_nei[mark - 1]; i++){
         // DFS
-        if(cur -> neighbor[i] != prev && cur -> neighbor[i] != next);{
+        if(cur -> neighbor[i] != prev && cur -> neighbor[i] != next){
             node *temp = cur -> neighbor[i];
-            printf("%d\n", temp -> vertex);
             table[temp -> vertex - 1] = mark;
-            stack_push(stk, temp);
+            stack_push_side(stk, temp);
             int target;
             while(1){
-                if(count[temp -> vertex - 1] < num_of_nei[temp -> vertex - 1] && temp -> down == temp -> neighbor[count[temp -> vertex - 1]])
+                if(count[temp -> vertex - 1] < num_of_nei[temp -> vertex - 1] && (temp -> neighbor[count[temp -> vertex - 1]] == cur || temp -> neighbor[count[temp -> vertex - 1]] == temp -> side_down))
                     count[temp -> vertex - 1]++;
                 if(count[temp -> vertex - 1] >= num_of_nei[temp -> vertex - 1]){
-                    stack_pop(stk);
+                    stack_pop_side(stk);
                     if(stack_is_empty(stk)) break;
                     else temp = stack_peek(stk);
                 }
@@ -96,7 +79,7 @@ void mark(node *cur, node *prev, node *next, int *table, int *num_of_nei, int *c
                     count[temp -> vertex - 1]++;
                     temp = temp -> neighbor[target];
                     table[temp -> vertex - 1] =  mark;
-                    stack_push(stk, temp); 
+                    stack_push_side(stk, temp);
                 }
             }
         }
@@ -128,22 +111,9 @@ int main(int argc, char *argv[]){
         num_of_nei[message[i][0] - 1]++;
         num_of_nei[message[i][1] - 1]++;
     }
-    //-----------------------------------------------------------------------------------
-    // for(int i = 0; i < N - 1; i++){
-    //     printf("%d %d\n", message[i][0], message[i][1]);
-    // }
-    // for(int i = 0; i < N; i++){
-    //     printf("%d ", neighbor[i]);
-    // }
-    // printf("\n");
-    //-----------------------------------------------------------------------------------
-
     // initialize each node's array contain its neighbor
     for(int i = 0; i < N; i++)
         adjLists[i] = node_new(i+1, num_of_nei[i]);
-
-    // free(neighbor);
-    // neighbor = NULL;
 
     // construct adj_list
     for(int i = 0; i < N - 1; i++){
@@ -153,80 +123,40 @@ int main(int argc, char *argv[]){
         count[message[i][1] - 1]++;
     }
 
-    //-----------------------------------------------------------------------------------
-    // printf("adj : \n");
-    // for(int i = 0; i < N; i++){
-    //     printf("vertex %d : ", adjLists[i] -> vertex);
-    //     int j = 0;
-    //     while(j < count[i]){
-    //         printf("%d ", adjLists[i] -> neighbor[j] -> vertex);
-    //         j++;
-    //     }
-    //     printf("\n");
-    // }
-    // printf("\n");
-    //-----------------------------------------------------------------------------------
-
-    // free(message);
-    // message = NULL;
     free(count);
     count = calloc(N, sizeof(int));
+    // counstruct main linked list from S to R
     node *temp = adjLists[S - 1];
     stack *stk = stack_new();
-    stack_push(stk, temp);
+    stack_push_main(stk, temp);
     int target;
     while(stack_peek(stk) -> vertex != R){
-        if(count[temp -> vertex - 1] < num_of_nei[temp -> vertex - 1] && temp -> down == temp -> neighbor[count[temp -> vertex - 1]]){
+        if(count[temp -> vertex - 1] < num_of_nei[temp -> vertex - 1] && temp -> main_down == temp -> neighbor[count[temp -> vertex - 1]]){
             count[temp -> vertex - 1]++;
         }
         if(count[temp -> vertex - 1] >= num_of_nei[temp -> vertex - 1]){
-            stack_pop(stk);
+            stack_pop_main(stk);
             temp = stack_peek(stk);
         }
         else{
             target = count[temp -> vertex - 1];
             count[temp -> vertex - 1]++;
             temp = temp -> neighbor[target];
-            stack_push(stk, temp); 
+            stack_push_main(stk, temp); 
         }
     }
     free(count);
     count = calloc(N, sizeof(int));
-    temp = stk -> top; // temp = R
-    //-----------------------------------------------------------------------------------
-    while(temp != NULL){
-        printf("%d ", temp -> vertex);
-        temp = temp -> down;
-    }
-    printf("\n");
-    //-----------------------------------------------------------------------------------prev != NULL || prev == NULL && temp == stk -> top
-    printf("Start!\n");
+    // counstruct table
     temp = stk -> top;
-    node *prev = NULL, *next;
-    int i  = 0;
-    while(i < 2){
-        printf("temp : %d\n", temp -> vertex);
-        next = temp -> down;
-        if(next) printf("next : %d\n", next -> vertex);
+    node *prev = NULL, *next = NULL;
+    while(temp != NULL){
+        next = temp -> main_down;
         mark(temp, prev, next, table, num_of_nei, count);
-        if(next) printf("next : %d\n", next -> vertex);
-        printf("temp : ");
-        printf("%d\n", temp -> vertex);
-        temp = next;
         prev = temp;
-        i++;
+        temp = next;
     }
     temp = stk -> top;
-    while(temp != NULL){
-        printf("%d ", temp -> vertex);
-        temp = temp -> down;
-    }
-    printf("\n");
-    printf("Start !\n");
-    for(int i = 0; i < N; i++){
-        printf("%d ", table[i]);
-    }
-    printf("\n");
     int query;
     int *ans = malloc(Q * sizeof(int));
     for(int i = 0; i < Q; i++){
