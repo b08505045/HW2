@@ -1,31 +1,91 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "price.h"
 
-unsigned long long remove_min(unsigned long long *A, int *size){
-    unsigned long long result = A[1];
-    unsigned long long tail = A[*size];
+// unsigned long long price(unsigned long long s, unsigned long long t){
+//     long long ans = s - t;
+//     return ans < 0 ? 0 : ans;
+// }
+
+// unsigned long long price(unsigned long long s, unsigned long long t){
+// 	unsigned long long p, x = (s ^ (s >> 30)) * 0xbf58476d1ce4e5b9ULL;
+// 	p = (s - 1) / 1000000ULL + 1ULL;
+// 	x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+// 	x = x ^ (x >> 31);  
+// 	unsigned long long la = 0, lb = 0, ra = 0xffffffffffefULL, rb = 0xffffffffffefULL, 
+// 		ma, mb, na, nb, y = x, ta = (t > (p >> 1)) ? (t - (p >> 1)) : 0, tb = t + (p >> 1), tr = t / p;
+
+// 	for(int i = 28; i >= 1; i -= 3){
+// 		ma = la + (((ra - la) * (x >> 48)) >> 16); 
+// 		mb = lb + (((rb - lb) * (y >> 48)) >> 16); 
+// 		if((1ULL << (i + 2)) & ta) la = ma;
+// 		else ra = ma;
+// 		if((1ULL << (i + 2)) & tb) lb = mb;
+// 		else rb = mb;
+// 		ma = la + (((ra - la) * ((x & 0xffff00000000ULL) >> 32)) >> 16); 
+// 		mb = lb + (((rb - lb) * ((y & 0xffff00000000ULL) >> 32)) >> 16); 
+// 		if((1ULL << (i + 1)) & ta) la = ma;
+// 		else ra = ma;
+// 		if((1ULL << (i + 1)) & tb) lb = mb;
+// 		else rb = mb;
+// 		ma = la + (((ra - la) * ((x & 0xffff0000ULL) >> 16)) >> 16); 
+// 		mb = lb + (((rb - lb) * ((y & 0xffff0000ULL) >> 16)) >> 16); 
+// 		x = (x >> 21) ^ (ta & (1ULL << i)) ^ (x * 0xc0ffee123456789ULL);
+// 		y = (y >> 21) ^ (tb & (1ULL << i)) ^ (y * 0xc0ffee123456789ULL);
+// 		if((1ULL << i) & ta) la = ma;
+// 		else ra = ma;
+// 		if((1ULL << i) & tb) lb = mb;
+// 		else rb = mb;
+// 	}
+
+// 	ma = la + (((ra - la) * (x >> 48)) >> 16); 
+// 	mb = lb + (((rb - lb) * (y >> 48)) >> 16); 
+// 	if(1ULL & ta) la = ma;
+// 	else ra = ma;
+// 	if(1ULL & tb) lb = mb;
+// 	else rb = mb;
+// 	y = (y ^ (y >> 30)) * 0xbf58476d1ce4e5b9ULL;
+// 	x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+// 	x = x ^ (y << 13);
+
+// 	return 	la + tr + (((lb - la) * (x >> 48)) >> 16);
+// }
+
+typedef struct node{
+    unsigned long long s_i, day, price;
+}node;
+
+node node_new(unsigned long long s_i, unsigned long long day){
+    node n;
+    n.s_i = s_i;
+    n.day = day;
+    n.price = price(s_i, day);
+    return n;
+}
+
+node remove_min(node *A, int *size){
+    node result = A[1];
+    A[1] = A[*size];
+    (*size)--;
     // printf("size : %d, remove : %d, tail : %d\n", *size, result, tail);
     int left, right;
-    A[1] = tail;
-    A[*size] = 0;
-    (*size)--;
     // printf("root now : %d, size now : %d\n", A[1], *size);
     int i = 1, smallest;
     while(i <= *size){
         left = 2 * i;
         right = 2 * i + 1;
-        if(left <= *size && A[left] <= A[i])
+        if(left <= *size && A[left].price <= A[i].price)
             smallest = left;
         else smallest = i;
-        if(right <= *size && A[right] <= A[smallest])
+        if(right <= *size && A[right].price <= A[smallest].price)
             smallest = right;
         if(smallest == i){
             // printf("break\n");
             break;
         }
         else{
-            int temp = A[i];
+            node temp = A[i];
             A[i] = A[smallest];
             A[smallest] = temp;
             i = smallest;
@@ -39,44 +99,45 @@ unsigned long long remove_min(unsigned long long *A, int *size){
     return result;
 }
 
-void insert(unsigned long long *A, unsigned long long data, int *size){
+void insert(node *A, node new_node, int *size){
     (*size)++;
-    A[*size] = data;
+    A[*size] = new_node;
     int i = *size, parent;
     while(i != 1){
         parent = i / 2;
-        if(A[i] > A[parent])
+        if(A[i].price > A[parent].price)
             break;
         else{
             A[i] = A[parent];
-            A[parent] = data;
+            A[parent] = new_node;
             i = parent;
         }
     }
 }
 
-void heap_sort(unsigned long long *A, int N, unsigned long long *sorted){
-    printf("\nLet's sort!\n");
-    unsigned long long data;
-    int size = N;
-    for(int i = 1; i < N + 1; i++){
-        data = remove_min(A, &size);
+void heap_sort(node *heap, int size, node *sorted, int cur, int k, int N){
+    // printf("\nLet's sort!\n");
+    node n;
+    for(int i = cur + 1; i < k + 1; i++){
+        n = remove_min(heap, &size);
         // printf("data is : %d\n", data);
-        sorted[i] = data;
+        sorted[i] = n;
+        insert(heap, node_new(n.s_i, n.day + N), &size);
     }
 }
-void min_heapify(unsigned long long *A, int i, int N){
+
+void min_heapify(node *A, int i, int size){
     int left, right, smallest;
-    while(i <= N){
+    while(i <= size){
         left = 2 * i;
         right = 2 * i + 1;
-        if(left <= N && A[left] <= A[i])
+        if(left <= size && A[left].price <= A[i].price)
             smallest = left;
         else smallest = i;
-        if(right <= N && A[right] <= A[smallest])
+        if(right <= size && A[right].price <= A[smallest].price)
             smallest = right;
         if(smallest != i){
-            int temp = A[i];
+            node temp = A[i];
             A[i] = A[smallest];
             A[smallest] = temp;
             i = smallest;
@@ -85,25 +146,23 @@ void min_heapify(unsigned long long *A, int i, int N){
         else break;
     }
 }
-void build_min_heap(unsigned long long *A, int N){
-    for(int i = N / 2; i > 0; i--){
-        min_heapify(A, i, N);
+void build_min_heap(node *A, int size){
+    for(int i = size / 2; i > 0; i--){
+        min_heapify(A, i, size);
     }
-}
-
-unsigned long long price(unsigned long long s, unsigned long long t){
-    return s - t;
 }
 
 int main(int argc, char *argv[]){
     int A, Q, N; // A : num of Brian's stock / Q : num of questions / N : N days
     scanf("%d %d %d", &A, &Q, &N);
-    int *fav = malloc((A + 1) * sizeof(int*));
-    unsigned long long *heap = malloc((N * A + 1) * sizeof(unsigned long long)); // using 1d to simulate 2d array
-    unsigned long long *sorted = malloc((N * A + 1) * sizeof(unsigned long long));
-    fav[0] = -1; // empty
-    heap[0] = -1; // empty
-    sorted[0] = -1;
+    int *fav = malloc((A + 1) * sizeof(int));
+    int size = N * A;
+    node *heap = malloc((size + 1) * sizeof(node)); // using 1d to simulate 2d array
+    node *sorted = malloc(1000001 * sizeof(node));
+
+    // sorted[size] = node_new(5, 3);
+    // printf("sorted[%d] : %llu\n", size, sorted[size].price);
+    
     // read fav
     for(int i = 1; i < A + 1; i++){
         scanf("%d", &fav[i]);
@@ -111,37 +170,66 @@ int main(int argc, char *argv[]){
     // create all A * N
     for(int i = 1; i < A + 1; i++){
         for(int j = 1; j < N + 1; j++){
-            heap[(i - 1) * N + j] = price(fav[i], j);
+            heap[(i - 1) * N + j] = node_new(fav[i], j);
         }
     }
     //--------------------------------------------------------------------------------------------
-    for(int i = 1; i < A + 1; i++){
-        for(int j = 1; j < N + 1; j++){
-            printf("%d ", heap[(i - 1) * N + j]);
-        }
-        printf("\n");
-    }
+    // printf("Start create\n");
+    // for(int i = 1; i < A + 1; i++){
+    //     for(int j = 1; j < N + 1; j++){
+    //         printf("%lld ", heap[(i - 1) * N + j].price);
+    //     }
+    //     printf("\n");
+    // }
     //--------------------------------------------------------------------------------------------
     // build heap
-    build_min_heap(heap, N * A);
+    // printf("Start build heap\n");
+    build_min_heap(heap, size);
     //--------------------------------------------------------------------------------------------
-    for(int i = 1; i < A + 1; i++){
-        for(int j = 1; j < N + 1; j++){
-            printf("%d ", heap[(i - 1) * N + j]);
-        }
-        printf("\n");
-    }
-    //--------------------------------------------------------------------------------------------
-    // int s, k, cur = 0; // (s, k) input, cur : current max k
-    // for(int i = 0; i < Q; i++){
-    //     scanf("%d %d", &s, &k);
-    //     if(cur <= k){
-    //         cur = k;
-    //         for(int i = 0; i < k; i++){
-    //             heap_sort(heap, N * A, sorted);
-    //         }
+    // for(int i = 1; i < A + 1; i++){
+    //     for(int j = 1; j < N + 1; j++){
+    //         printf("%lld ", heap[(i - 1) * N + j].price);
     //     }
+    //     printf("\n");
     // }
+    // printf("Query :\n\n");
+    //--------------------------------------------------------------------------------------------
+    int s, k, cur = 0; // (s, k) input, cur : current max k
+    unsigned long long *ans = malloc(Q * sizeof(unsigned long long));
+    for(int i = 0; i < Q; i++){
+        scanf("%d %d", &s, &k);
+        if(cur < k){
+            heap_sort(heap, size, sorted, cur, k , N);
+            cur = k;
+            ans[i] = sorted[k].price;
+            // printf("\n k-th smallest : %llu\n", sorted[k].price);
+        }
+        else{
+            ans[i] = sorted[k].price;
+            // printf("already exist k-th smallest : %llu\n", sorted[k].price);
+        }
+        // printf("sorted : ");
+        // for(int i = 1; i < k + 1; i++){
+        //     printf("%llu ", sorted[i].price);
+        // }
+        // printf("\nheap :");
+        // for(int i = 1; i < size + 1; i++){
+        //     printf("%llu ", heap[i].price);
+        // }
+    
+        // // addtional stock
+        // if(s){
+
+        // }
+        // // no addtional
+        // else{
+
+        // }
+    }
+    for(int i = 0; i < Q; i++){
+        printf("%llu\n", ans[i]);
+    }
+
     // if(A == 1){
     //     // A == 1 && N == 1
     //     if(N == 1){
